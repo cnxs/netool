@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Name:     netcheck
+# Version:  1.0
+# Update:   2012-06-21
+# Author:   reatdoom
+
+source netcheck.conf
+
+#################### 函数 #################### 
+
+function log {
+    a="$2"
+    desc=${a// /%20}
+    echo $desc
+    curl --connect-timeout 3 "$URL?platform=NETM&type=$1&description=$desc"
+}
+
+#################### 变量 #################### 
+
+loser="IP:"
+
+#################### 检测开始 #################### 
+
+for ip in ${IPS[@]}
+do
+
+    ping -w2 -c 1 $ip > /dev/null 2>/dev/null
+
+    if [ $? -eq 0 ]
+    then
+        echo -e "$GREEN> $ip Online"
+    else
+        status=1
+        loser="$loser \n $ip"
+        echo -e "$RED> $ip Offline"
+    fi
+
+done
+
+echo -e "$DEFAULT"
+
+#################### 防止重复报警 #################### 
+
+if [ $status -eq 1 ]
+then
+
+    if [ ! -f /var/lock/network.lock ]
+    then
+        echo -e "$loser"|mailx -r cntvwx@cntv.it -s "NetWork Device Offline" $EMAIL
+        touch /var/lock/network.lock
+    	echo "Created Lockfile"
+    fi
+
+else
+
+    if [ -f /var/lock/network.lock ]
+    then
+        /bin/rm /var/lock/network.lock
+	    echo "Remove Lockfile"
+    fi
+
+fi
+
+exit 0
